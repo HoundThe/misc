@@ -79,7 +79,8 @@ int main(int argc, char **argv)
     // Prvni alokace
     // Mela by alokovat novou arenu, pripravit hlavicku v ni a prave jeden
     // blok.
-    void *p1 = my_malloc(42);
+    void *p1 = my_malloc(131025);
+
     /**
      *   v----- first_arena
      *   +-----+------+----+------+----------------------------+
@@ -87,16 +88,20 @@ int main(int argc, char **argv)
      *   +-----+------+----+------+----------------------------+
      *       p1-------^
      */
-    assert(first_arena != NULL);
-    assert(first_arena->next == NULL);
-    assert(first_arena->size > 0);
-    assert(first_arena->size <= PAGE_SIZE);
-    header_t *h1 = (header_t*)(&first_arena[1]);
-    header_t *h2 = h1->next;
-    assert(h1->free == 0);
-    assert((char*)h2 > (char*)h1);
-    assert(h2->next == h1);
-    assert(h2->free == 1);
+    // assert(first_arena != NULL);
+    // assert(first_arena->next == NULL);
+    // assert(first_arena->size > 0);
+    // assert(first_arena->size <= PAGE_SIZE);
+    // header_t *h1 = (header_t*)(&first_arena[1]);
+    // header_t *h2 = h1->next;
+    // assert(h1->free == 0);
+    // assert((char*)h2 > (char*)h1);
+    // // assert(h2->next == h1);
+    // assert(h2->free == 1);
+
+    // my_malloc(131072);
+    // my_malloc(1);
+    // my_malloc(13000);
 
     debug_arenas();
     return;

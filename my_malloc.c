@@ -3,10 +3,9 @@
 typedef struct header {
 	// this aligns the header to the most restrictive alignment on the platform
 	// beware, this is C11
-	alignas(max_align_t) 
 	struct header *next;
 	size_t size;
-	char free;
+	alignas(max_align_t)char free;
 } header_t;
 
 
@@ -16,19 +15,19 @@ typedef struct arena {
 } arena_t;
 
 arena_t *first_arena = NULL;
-
 // mmap returns page aligned memory, lets allocate in huge chunks and delegate parts of them
 #define PAGE_SIZE (128*1024)
-#define MIN_BLOCK_SIZE (2*sizeof(header_t))
+// smallest size of the block possible. (header + free memory that is atleast as big as the header size)
+#define MIN_BLOCK_SIZE (sizeof(header_t) + alignof(max_align_t))
 // align arena to the nearest multiply of PAGE_SIZE
 #define ALIGN_ARENA(size)	\
 	((size) % (PAGE_SIZE) ? (size) + (PAGE_SIZE) - (size) % (PAGE_SIZE) : (size))
 // align block to the nearest multiply of header_t
 #define ALIGN_BLOCK(size)	\
-	((size) % (sizeof(header_t)) ? (size) + (sizeof(header_t)) - (size) % (sizeof(header_t)) : (size))
+	((size) % (alignof(max_align_t)) ? (size) + (alignof(max_align_t)) - (size) % (alignof(max_align_t)) : (size))
 
 /**
- * @brief Allocates new arena and creates first header in the arena
+ * @brief Allocates new arena
  * 
  * @param size the least amount of bytes necessary 
  * @return arena_t* Pointer to the newly allocated arena
@@ -48,12 +47,20 @@ static arena_t *arena_alloc(size_t size){
 	return arena;
 }
 /**
- * @brief Finds the best fitting memory block
+ * @brief Finds the first big enough block
  * 
- * @return header_t* 
+ * @return header_t* Big enough block or NULL
  */
-static header_t *firstfit(void){
-	
+static header_t *firstfit(size_t req_size){
+	if(first_arena == NULL)
+			return NULL;
+
+	header_t *hdr = (header_t*)(first_arena+1);
+	for ( ; hdr; hdr = hdr->next) {
+		if((hdr->size >= req_size) && hdr->free)
+			return hdr;
+	}
+	return NULL;
 }
 /**
  * @brief splits header in two
@@ -76,13 +83,15 @@ static header_t *hdr_split(header_t *hdr, size_t req_size)
 }
 
 void *my_malloc(size_t size){
-	if(first_arena != NULL){ // find the best fit
-		header_t *startHdr = (header_t*)(first_arena+1);
-		header_t *p = startHdr, *bestfit = NULL;
-		while(p->next != startHdr){
-			if()
+	header_t *freeHeader = firstfit(ALIGN_BLOCK(size));
+	if(freeHeader != NULL){
+// we found a block, try to split it, reserve it and return start of the free space
+		if((freeHeader->size - size) >= MIN_BLOCK_SIZE)
+		{
+			freeHeader->next = hdr_split(freeHeader, ALIGN_BLOCK(size));
 		}
-		
+		freeHeader->free = 0;
+		return freeHeader+1;
 	}
 	else // allocate new
 	{
@@ -94,7 +103,7 @@ void *my_malloc(size_t size){
 
 		hdr->size = spaceLeft;
 		hdr->free = 0;
-		hdr->next = hdr;
+		hdr->next = NULL;;
 
 		if(spaceLeft - ALIGN_BLOCK(size) >= MIN_BLOCK_SIZE)
 		{
@@ -104,14 +113,15 @@ void *my_malloc(size_t size){
 		if(first_arena == NULL){
 			first_arena = arena;
 		}
-////////////////////
-		// Append the arena to the end of list;
-		else {
+		else { // Append the arena to the end of list;
 			arena_t *prev = first_arena;
 			while(prev->next != NULL){
 				prev = prev->next;
 			}
 			prev->next = arena;
+			header_t *last = (header_t*)(prev+1);
+			for(;last->next;last = last->next);
+			last->next = hdr;
 		}
 		return hdr+1;
 	}	
