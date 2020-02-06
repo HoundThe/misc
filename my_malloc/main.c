@@ -13,7 +13,7 @@ typedef struct header {
 	struct header *next;
 	struct header *prev;
 	size_t size;
-	char free;
+	size_t free;
 } header_t;
 
 
@@ -26,14 +26,15 @@ extern arena_t *first_arena;
 
 void debug_hdr(header_t *h, int idx)
 {
-	printf("+- Header %d @ %p, data @ %p\n", idx, h, &h[1]);
+	char free[2][4] = {"no", "yes"};
+	printf("+- Header %d @ %p, data @ %p\n", idx, (void*)h, (void*)&h[1]);
 	printf("|    | next           | prev           | size     | isFree   |\n");
-	printf("|    | %-14p | %-14p | %-8lu | %-8lu |\n", h->next, h->prev, h->size, h->free);
+	printf("|    | %-14p | %-14p | %-8lu | %8s |\n", (void*)h->next, (void*)h->prev, h->size, free[h->free]);
 }
 
 void debug_arena(arena_t *a, int idx)
 {
-	printf("Arena %d @ %p\n", idx, a);
+	printf("Arena %d @ %p\n", idx, (void*)a);
 	printf("|\n");
 	char *arena_stop = (char*)a + a->size;
 	header_t *h = (header_t*)&a[1];
@@ -77,60 +78,48 @@ void debug_arenas()
 int main(void)
 {
 	assert(first_arena == NULL);
-	printf("Size of header and arena %lu %lu", sizeof(header_t), sizeof(arena_t));
+	printf("Size of header and arena %lu %lu\n", sizeof(header_t), sizeof(arena_t));
 	/***********************************************************************/
 	// Prvni alokace
 	// Mela by alokovat novou arenu, pripravit hlavicku v ni a prave jeden
 	// blok.
-	void *p1;
-	// should max out one whole arena
-	for(int i = 1024-16; i >= 17; i-=48){
-		p1 = my_malloc(1);
-		// check everything is writable
-		memset(p1, rand()%RAND_MAX, alignof(max_align_t));
-		header_t *hdr = (header_t*)p1-1;
-		// assert that everything is aligned;
-		assert(hdr->size%16 == 0);
-		assert(hdr->next == NULL || hdr->prev == NULL || hdr->next->prev == hdr && hdr->prev->next == hdr);
-	}
+	void *p[100];
 	debug_arenas();
-	srand(time(NULL));
-	#define COUNT 500
-	for (size_t i = 0; i < COUNT; i++) {
-		int rnd = rand()%10000000;
-		p1 = my_malloc(rnd);
-		memset(p1, rand()%RAND_MAX, rnd);
-		header_t *hdr = (header_t*)p1-1;
-		// assert that everything is aligned;
-		assert(hdr->size%16 == 0);
-		assert(hdr->next == NULL || hdr->prev == NULL || hdr->next->prev == hdr && hdr->prev->next == hdr);
-	}
-
+	p[0] = my_malloc(123);
+	memset(p[0],'K', 123);
+	debug_arenas();
+	p[1] = my_malloc(123123122);
+	memset(p[1],'A', 130856);
+	debug_arenas();
+	p[2] = my_malloc(123);
+	memset(p[2],'A', 123);
+	debug_arenas();
+	p[3] = my_malloc(123);
+	memset(p[3],'A', 123);
+	debug_arenas();
+	p[4] = my_malloc(130705);
+	memset(p[4],'A', 130705);
+	debug_arenas();
+	
+	my_free(p[2]);
 	debug_arenas();
 
-	/**
-	void *p1 = my_malloc(1);
-	 *   v----- first_arena
-	 *   +-----+------+----+------+----------------------------+
-	 *   |Arena|Header|XXXX|Header|............................|
-	 *   +-----+------+----+------+----------------------------+
-	 *       p1-------^
-	 */
-	// assert(first_arena != NULL);
-	// assert(first_arena->next == NULL);
-	// assert(first_arena->size > 0);
-	// assert(first_arena->size <= PAGE_SIZE);
-	// header_t *h1 = (header_t*)(&first_arena[1]);
-	// header_t *h2 = h1->next;
-	// assert(h1->free == 0);
-	// assert((char*)h2 > (char*)h1);
-	// // assert(h2->next == h1);
-	// assert(h2->free == 1);
+	my_free(p[3]);
+	debug_arenas();
 
-	// my_malloc(131072);
-	// my_malloc(1);
-	// my_malloc(13000);
-	assert(my_malloc(123121123131) == NULL);
+	p[2] = my_malloc(288);
+	debug_arenas();
+
+	p[5] = my_malloc(393000);
+	debug_arenas();
+	p[6] = my_malloc(128);
+	debug_arenas();
+
+	my_free(p[6]);
+	debug_arenas();
+
+	my_free(p[1]);
+	debug_arenas();
 
 	return 0;
 }
