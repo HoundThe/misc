@@ -1,5 +1,5 @@
 CFLAGS=-std=gnu11 -pedantic -Wextra -Wall -g
-CC=gcc
+CC=clang
 all: malloc_test
 
 malloc_test: main.o my_malloc.o
